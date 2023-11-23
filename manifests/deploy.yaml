@@ -137,6 +137,7 @@ data:
     -A OUTPUT -d 240.0.0.0/4 -j REJECT --reject-with icmp-port-unreachable
     
     # # RFC919/922 broadcast domain
+    # uncommenting this leads to indefinite timeout, unsure why
     # -A OUTPUT -d 255.255.255.255/32 -j REJECT --reject-with icmp-port-unreachable
     
     COMMIT
