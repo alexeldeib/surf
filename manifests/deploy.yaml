@@ -14,19 +14,6 @@ spec:
       labels:
         app: *name
     spec:
-      # tolerations:
-      #   - key: "node-role.kubernetes.io/master"
-      #     operator: "Exists"
-      #
-      # # above OR below needed ONLY, not both
-      # #
-      # affinity:
-      #   nodeAffinity:
-      #     requiredDuringSchedulingIgnoredDuringExecution:
-      #       nodeSelectorTerms:
-      #       - matchExpressions:
-      #         - key: node-role.kubernetes.io/master
-      #           operator: Exists
       containers:
       - image: 'docker.io/alexeldeib/server:2023-11-23T18-00-00'
         name: server
@@ -65,33 +52,18 @@ spec:
       labels:
         app: *name
     spec:
-      # tolerations:
-      #   - key: "node-role.kubernetes.io/master"
-      #     operator: "Exists"
-      #
-      # # above OR below needed ONLY, not both
-      # #
-      # affinity:
-      #   nodeAffinity:
-      #     requiredDuringSchedulingIgnoredDuringExecution:
-      #       nodeSelectorTerms:
-      #       - matchExpressions:
-      #         - key: node-role.kubernetes.io/master
-      #           operator: Exists
       initContainers:
       - image: registry.k8s.io/build-image/distroless-iptables:v0.4.2
         name: iptables
         command:
-        - iptables-legacy-restore
-        - -v
-        - /data/iptables.conf
+        - sh
+        - /data/init.sh
         securityContext:
           capabilities:
             add: ["NET_ADMIN"]
         volumeMounts:
         - name: proxyconf
-          mountPath: /data/iptables.conf
-          subPath: iptables.conf
+          mountPath: /data
       containers:
       - image: docker.io/alexeldeib/proxy:2023-11-23T18-00-00
         name: proxy
@@ -131,17 +103,82 @@ data:
     :INPUT ACCEPT [0:0]
     :FORWARD ACCEPT [0:0]
     :OUTPUT ACCEPT [0:0]
+
+    # RFC1122, localhost
     -A OUTPUT -d 127.0.0.0/8 -j REJECT --reject-with icmp-port-unreachable
+ 
+    # RFC1918 private networks
     -A OUTPUT -d 10.0.0.0/8 -j REJECT --reject-with icmp-port-unreachable
     -A OUTPUT -d 172.16.0.0/12 -j REJECT --reject-with icmp-port-unreachable
     -A OUTPUT -d 192.168.0.0/16 -j REJECT --reject-with icmp-port-unreachable
+ 
+    # RFC6598 shared address space
     -A OUTPUT -d 100.64.0.0/10 -j REJECT --reject-with icmp-port-unreachable
+
+    # RFC3927 link local addresses
     -A OUTPUT -d 169.254.0.0/16 -j REJECT --reject-with icmp-port-unreachable
+
+    # RFC5736, RC5737 test networks
     -A OUTPUT -d 192.0.0.0/24 -j REJECT --reject-with icmp-port-unreachable
     -A OUTPUT -d 192.0.2.0/24 -j REJECT --reject-with icmp-port-unreachable
-    -A OUTPUT -d 255.255.255.255/32 -j REJECT --reject-with icmp-port-unreachable
+    -A OUTPUT -d 198.51.100.0/24 -j REJECT --reject-with icmp-port-unreachable
+    -A OUTPUT -d 203.0.113.0/24 -j REJECT --reject-with icmp-port-unreachable
+
+    # RFC3068 6to4 relay
+    -A OUTPUT -d 192.88.99.0/24 -j REJECT --reject-with icmp-port-unreachable
+
+    # RFC2544 network interconnect benchmarking
+    -A OUTPUT -d 198.18.0.0/15 -j REJECT --reject-with icmp-port-unreachable
+
+    # multicast
+    -A OUTPUT -d 224.0.0.0/4 -j REJECT --reject-with icmp-port-unreachable
+
+    # reserved
+    -A OUTPUT -d 240.0.0.0/4 -j REJECT --reject-with icmp-port-unreachable
+    
+    # # RFC919/922 broadcast domain
+    # -A OUTPUT -d 255.255.255.255/32 -j REJECT --reject-with icmp-port-unreachable
+    
+    COMMIT
+
+    # Completed on Thu Nov 23 18:05:14 2023
+
+  ip6tables.conf: |-
+    *filter
+    :INPUT ACCEPT [0:0]
+    :FORWARD ACCEPT [0:0]
+    :OUTPUT ACCEPT [0:0]
+
+    # ...and ipv6 from RFC4773
+    -A OUTPUT -d ::1/128 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d ::/128 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d ::ffff:0:0/96 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 64:ff9b::/96 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 64:ff9b:1::/48 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 100::/64 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001::/23 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001::/32 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:1::1/128 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:1::2/128 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:2::/48 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:3::/32 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:4:112::/48 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:10::/28 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:20::/28 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:30::/28 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2001:db8::/32 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2002::/16 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d 2620:4f:8000::/48 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d fc00::/7 -j REJECT --reject-with icmp6-port-unreachable
+    -A OUTPUT -d fe80::/10 -j REJECT --reject-with icmp6-port-unreachable
 
     COMMIT
 
     # Completed on Thu Nov 23 18:05:14 2023
+  
+  init.sh: |-
+    set -e
+
+    iptables-legacy-restore -v /data/iptables.conf
+    ip6tables-legacy-restore -v /data/ip6tables.conf
 ---

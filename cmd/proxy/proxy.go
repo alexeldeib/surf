@@ -73,7 +73,7 @@ func proxy(w http.ResponseWriter, r *http.Request) {
 			PreferGo: true,
 			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
 				d := net.Dialer{
-					Timeout: time.Duration(5000) * time.Millisecond,
+					Timeout: time.Duration(3000) * time.Millisecond,
 				}
 				return d.DialContext(ctx, network, address)
 			},
@@ -85,8 +85,8 @@ func proxy(w http.ResponseWriter, r *http.Request) {
 	c := &http.Client{
 		Transport: &http.Transport{
 			Dial:                  (d).Dial,
-			TLSHandshakeTimeout:   10 * time.Second,
-			ResponseHeaderTimeout: 10 * time.Second,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: 5 * time.Second,
 			// Note: this disables H2 in some cases. We're not using it.
 			ExpectContinueTimeout: 1 * time.Second,
 		},
