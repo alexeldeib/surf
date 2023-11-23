@@ -111,7 +111,7 @@ func proxy(w http.ResponseWriter, r *http.Request) {
 
 	log.Println(string(pd))
 
-	req, err := http.NewRequest("GET", "http://proxy", bytes.NewBuffer(pd))
+	req, err := http.NewRequest("GET", "http://proxy/proxy", bytes.NewBuffer(pd))
 	if err != nil {
 		http.Error(w, fmt.Sprintf("failed to create user-targeted request: %s", err), http.StatusBadRequest)
 		return
